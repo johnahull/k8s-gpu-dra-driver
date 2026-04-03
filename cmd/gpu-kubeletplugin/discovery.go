@@ -36,6 +36,7 @@ import (
 	"fmt"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/amdgpu"
+	"github.com/ROCm/k8s-gpu-dra-driver/pkg/consts"
 	"k8s.io/dynamic-resource-allocation/deviceattribute"
 	klog "k8s.io/klog/v2"
 )
@@ -101,8 +102,13 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 		// Extract common topology information
 		simdUnits, computeUnits := extractTopologyInfo(gpuInfoMap)
 
-		if computePartitionType == "spx" {
-			// This is a full AMD GPU
+		if computePartitionType == consts.ComputePartitionSPX || computePartitionType == "" {
+			// This is a full AMD GPU (either explicitly "spx" or no partition support)
+			partitionProfile := consts.DefaultPartitionProfile
+			if computePartitionType != "" && memoryPartitionType != "" {
+				partitionProfile = fmt.Sprintf("%s_%s", computePartitionType, memoryPartitionType)
+			}
+
 			amdGpuInfo := &AmdGpuInfo{
 				PCIAddress:       pciAddr,
 				CardIndex:        gpuInfoMap["card"].(int),
@@ -110,7 +116,7 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 				DeviceID:         gpuInfoMap["devID"].(string),
 				DriverVersion:    gpuInfoMap["driverVersion"].(string),
 				DriverSrcVersion: gpuInfoMap["driverSrcVersion"].(string),
-				PartitionProfile: fmt.Sprintf("%s_%s", computePartitionType, memoryPartitionType),
+				PartitionProfile: partitionProfile,
 				Family:           gpuInfoMap["family"].(string),
 				ProductName:      gpuInfoMap["productName"].(string),
 				pcieRootAttr:     pcieRootAttr,
