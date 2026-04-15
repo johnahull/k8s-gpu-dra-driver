@@ -93,12 +93,16 @@ func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 		"driverSrcVersion": {
 			StringValue: ptr.To(d.DriverSrcVersion),
 		},
-		"partitionProfile": {
-			StringValue: ptr.To(d.PartitionProfile),
-		},
 		"numaNode": {
 			IntValue: ptr.To(int64(d.NumaNode)),
 		},
+	}
+
+	// Only advertise partitionProfile if the GPU supports partitioning
+	if d.PartitionProfile != "" {
+		attributes["partitionProfile"] = resourceapi.DeviceAttribute{
+			StringValue: ptr.To(d.PartitionProfile),
+		}
 	}
 
 	// Add PCIe root attribute if available

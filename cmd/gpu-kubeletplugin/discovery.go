@@ -104,7 +104,7 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 		if computePartitionType == consts.ComputePartitionSPX || computePartitionType == "" {
 			// This is a full AMD GPU (either explicitly "spx" or no partition support)
-			partitionProfile := consts.DefaultPartitionProfile
+			partitionProfile := ""
 			if computePartitionType != "" && memoryPartitionType != "" {
 				partitionProfile = fmt.Sprintf("%s_%s", computePartitionType, memoryPartitionType)
 			}
