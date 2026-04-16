@@ -35,7 +35,7 @@ WORKDIR /build
 COPY . .
 
 RUN apt-get update && \
-    apt-get install build-essential pkg-config libdrm-dev -y && \
+    apt-get install build-essential -y && \
     rm -rf /var/lib/apt/lists/* && \
     mkdir /artifacts && \
     make PREFIX=/artifacts cmds
