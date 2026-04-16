@@ -207,11 +207,14 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 			productName = replacer.Replace(strings.TrimSpace(string(b)))
 		}
 
+		sysfsDeviceID := GetDeviceID(fmt.Sprintf("card%d", card))
+
 		// add devID and topology info so that we can identify later which gpu should get reported under which resource type
 		deviceInfo := map[string]interface{}{
 			"card":                 card,
 			"renderD":              renderD,
-			"devID":                devID,
+			"kfdID":                devID,
+			"deviceID":             sysfsDeviceID,
 			"pciAddr":              pciAddr,
 			"driverVersion":        globalDriverVersion,
 			"driverSrcVersion":     globalDriverSrcVersion,
@@ -247,6 +250,7 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 		parentPciAddr := ""
 		familyName := ""
 		productName := ""
+		sysfsDeviceID := ""
 
 		for _, devPath := range devPaths {
 			switch name := filepath.Base(devPath); {
@@ -260,11 +264,12 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 				}
 				// Set the computePartitionType, memoryPartitionType, numaNode, PCI address from the real GPU using the common devID
 				for _, device := range devices {
-					if device["devID"] == devID {
+					if device["kfdID"] == devID {
 						parentPciAddr = device["pciAddr"].(string)
 						numaNode = device["numaNode"].(int)
 						familyName = device["family"].(string)
 						productName = device["productName"].(string)
+						sysfsDeviceID = device["deviceID"].(string)
 						if device["computePartitionType"].(string) != "" && device["memoryPartitionType"].(string) != "" {
 							computePartitionType = device["computePartitionType"].(string)
 							memoryPartitionType = device["memoryPartitionType"].(string)
@@ -287,7 +292,8 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 		deviceInfo := map[string]interface{}{
 			"card":                 card,
 			"renderD":              renderD,
-			"devID":                devID,
+			"kfdID":                devID,
+			"deviceID":             sysfsDeviceID,
 			"pciAddr":              parentPciAddr,
 			"driverVersion":        globalDriverVersion,
 			"driverSrcVersion":     globalDriverSrcVersion,
@@ -311,6 +317,18 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 	}
 	glog.Infof("Devices map: %v", devices)
 	return devices
+}
+
+// GetDeviceID reads the PCI device ID from sysfs for the given DRM card
+// Returns the device ID string (e.g., "0x740f") or empty string on failure
+func GetDeviceID(cardName string) string {
+	sysfsDevicePath := "/sys/class/drm/" + cardName + "/device/device"
+	b, err := os.ReadFile(sysfsDevicePath)
+	if err != nil {
+		glog.Warningf("Failed to read device ID from %s: %s", sysfsDevicePath, err)
+		return ""
+	}
+	return strings.TrimSpace(string(b))
 }
 
 // AMDGPU check if a particular card is an AMD GPU by checking the device's vendor ID

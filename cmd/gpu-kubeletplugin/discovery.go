@@ -71,16 +71,17 @@ func getMemoryBytes(gpuInfoMap map[string]interface{}, defaultBytes uint64, devi
 	return defaultBytes
 }
 
-func getPcieInfo(gpuInfoMap map[string]interface{}) (deviceattribute.DeviceAttribute, string, error) {
+func getPcieInfo(gpuInfoMap map[string]interface{}) (deviceattribute.DeviceAttribute, deviceattribute.DeviceAttribute, string, error) {
 	pciAddr := gpuInfoMap["pciAddr"].(string)
-
-	// Use the PCI address from the device info (which is the parent's PCI address for partitions)
 	pcieRootAttr, err := deviceattribute.GetPCIeRootAttributeByPCIBusID(pciAddr)
 	if err != nil {
-		return pcieRootAttr, "", fmt.Errorf("Failed to get PCIe root attribute for device %s (using PCI addr %s): %v", pciAddr, pciAddr, err)
+		return pcieRootAttr, deviceattribute.DeviceAttribute{}, "", fmt.Errorf("Failed to get PCIe root attribute for device %s: %v", pciAddr, err)
 	}
-
-	return pcieRootAttr, pciAddr, nil
+	pciBusIDAttr, err := deviceattribute.GetPCIBusIDAttribute(pciAddr)
+	if err != nil {
+		return pcieRootAttr, pciBusIDAttr, "", fmt.Errorf("Failed to get PCI Bus ID attribute for device %s: %v", pciAddr, err)
+	}
+	return pcieRootAttr, pciBusIDAttr, pciAddr, nil
 }
 
 func enumerateAllPossibleDevices() (AllocatableDevices, error) {
@@ -89,7 +90,7 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 	for pciAddr, gpuInfoMap := range allAMDGPUs {
 		// Get PCIe root attribute for this device using the PCI address from the device info
-		pcieRootAttr, pciAddrFromMap, err := getPcieInfo(gpuInfoMap)
+		pcieRootAttr, pciBusIDAttr, pciAddrFromMap, err := getPcieInfo(gpuInfoMap)
 		if err != nil {
 			// Continue without PCIe root attribute rather than failing completely
 			klog.Warning(err.Error())
@@ -111,15 +112,17 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 			amdGpuInfo := &AmdGpuInfo{
 				PCIAddress:       pciAddr,
-				CardIndex:        gpuInfoMap["card"].(int),
-				RenderIndex:      gpuInfoMap["renderD"].(int),
-				DeviceID:         gpuInfoMap["devID"].(string),
+				cardIndex:        gpuInfoMap["card"].(int),
+				renderIndex:      gpuInfoMap["renderD"].(int),
+				KFDID:            gpuInfoMap["kfdID"].(string),
+				DeviceID:         gpuInfoMap["deviceID"].(string),
 				DriverVersion:    gpuInfoMap["driverVersion"].(string),
 				DriverSrcVersion: gpuInfoMap["driverSrcVersion"].(string),
 				PartitionProfile: partitionProfile,
 				Family:           gpuInfoMap["family"].(string),
 				ProductName:      gpuInfoMap["productName"].(string),
 				pcieRootAttr:     pcieRootAttr,
+				pciBusIDAttr:     pciBusIDAttr,
 				SimdUnits:        simdUnits,
 				ComputeUnits:     computeUnits,
 				NumaNode:         gpuInfoMap["numaNode"].(int),
@@ -140,18 +143,20 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 			// Create parent GPU info
 			parentGpuInfo := &AmdGpuInfo{
 				PCIAddress:       pciAddrFromMap,
-				DeviceID:         gpuInfoMap["devID"].(string),
+				KFDID:            gpuInfoMap["kfdID"].(string),
+				DeviceID:         gpuInfoMap["deviceID"].(string),
 				DriverVersion:    gpuInfoMap["driverVersion"].(string),
 				DriverSrcVersion: gpuInfoMap["driverSrcVersion"].(string),
 				Family:           gpuInfoMap["family"].(string),
 				ProductName:      gpuInfoMap["productName"].(string),
 				pcieRootAttr:     pcieRootAttr,
+				pciBusIDAttr:     pciBusIDAttr,
 			}
 
 			// Create partition info
 			partitionInfo := &AmdPartitionInfo{
-				CardIndex:        gpuInfoMap["card"].(int),
-				RenderIndex:      gpuInfoMap["renderD"].(int),
+				cardIndex:        gpuInfoMap["card"].(int),
+				renderIndex:      gpuInfoMap["renderD"].(int),
 				Parent:           parentGpuInfo,
 				PartitionProfile: fmt.Sprintf("%s_%s", computePartitionType, memoryPartitionType),
 				SimdUnits:        simdUnits,
