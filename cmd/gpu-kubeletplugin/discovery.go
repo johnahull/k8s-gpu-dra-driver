@@ -140,13 +140,13 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 			// Create parent GPU info
 			parentGpuInfo := &AmdGpuInfo{
-				PCIAddress:       pciAddrFromMap,
-				KFDID:            gpuInfoMap["kfdID"].(string),
-				DeviceID:         gpuInfoMap["deviceID"].(string),
-				DriverVersion:    gpuInfoMap["driverVersion"].(string),
-				ProductName:      gpuInfoMap["productName"].(string),
-				pcieRootAttr:     pcieRootAttr,
-				pciBusIDAttr:     pciBusIDAttr,
+				PCIAddress:    pciAddrFromMap,
+				KFDID:         gpuInfoMap["kfdID"].(string),
+				DeviceID:      gpuInfoMap["deviceID"].(string),
+				DriverVersion: gpuInfoMap["driverVersion"].(string),
+				ProductName:   gpuInfoMap["productName"].(string),
+				pcieRootAttr:  pcieRootAttr,
+				pciBusIDAttr:  pciBusIDAttr,
 			}
 
 			// Create partition info
