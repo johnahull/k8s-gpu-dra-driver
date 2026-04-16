@@ -77,24 +77,18 @@ spec:
   devices:
   - name: gpu-0-128
     attributes:
-      cardIndex:
-        int: 40
       deviceID:
-        string: "994913940318892495"
-      driverSrcVersion:
-        string: 7AA72EC2C8F513519BE86FD
+        string: "0x740f"
       driverVersion:
         version: 6.12.12
-      family:
-        string: AI
+      numaNode:
+        int: 0
       partitionProfile:
         string: spx_nps1
-      pciAddr:
-        string: "0003:00:02.0"
       productName:
         string: AMD_Instinct_MI300X_OAM
-      renderIndex:
-        int: 168
+      resource.kubernetes.io/pciBusID:
+        string: "0003:00:02.0"
       resource.kubernetes.io/pcieRoot:
         string: pci0003:00
       type:
@@ -258,7 +252,7 @@ kubectl apply -f example/example-partitions-same-parent.yaml
 kubectl get resourceclaims -n gpu-test two-partitions-same-parent -oyaml
 ```
 
-Check the allocation results: both devices should be partitions (`type: amdgpu-partition`) and share the same `deviceID`.
+Check the allocation results: both devices should be partitions (`type: amdgpu-partition`) and share the same `resource.kubernetes.io/pciBusID`.
 
 ### E. Partitions: two from distinct parent GPUs
 
@@ -271,7 +265,7 @@ kubectl apply -f example/example-partitions-distinct-parents.yaml
 kubectl get resourceclaims -n gpu-test two-partitions-distinct-parents -oyaml
 ```
 
-Check the allocation results: both devices are partitions with different `deviceID` values.
+Check the allocation results: both devices are partitions with different `resource.kubernetes.io/pciBusID` values.
 
 ---
 
