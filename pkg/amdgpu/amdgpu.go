@@ -15,16 +15,9 @@ limitations under the License.
 */
 
 // Package amdgpu is a collection of utility functions to access various properties
-// of AMD GPU via Linux kernel interfaces like sysfs and ioctl (using libdrm.)
+// of AMD GPU via Linux kernel interfaces like sysfs.
 package amdgpu
 
-// #cgo pkg-config: libdrm libdrm_amdgpu
-// #include <stdint.h>
-// #include <xf86drm.h>
-// #include <drm.h>
-// #include <amdgpu.h>
-// #include <amdgpu_drm.h>
-import "C"
 import (
 	"bufio"
 	"errors"
@@ -38,58 +31,12 @@ import (
 	"github.com/golang/glog"
 )
 
-// FamilyID to String convert AMDGPU_FAMILY_* into string
-// AMDGPU_FAMILY_* as defined in https://github.com/torvalds/linux/blob/master/include/uapi/drm/amdgpu_drm.h#L986
-func FamilyIDtoString(familyId uint32) (string, error) {
-	switch familyId {
-	case C.AMDGPU_FAMILY_SI:
-		return "SI", nil
-	case C.AMDGPU_FAMILY_CI:
-		return "CI", nil
-	case C.AMDGPU_FAMILY_KV:
-		return "KV", nil
-	case C.AMDGPU_FAMILY_VI:
-		return "VI", nil
-	case C.AMDGPU_FAMILY_CZ:
-		return "CZ", nil
-	case C.AMDGPU_FAMILY_AI:
-		return "AI", nil
-	case C.AMDGPU_FAMILY_RV:
-		return "RV", nil
-	case C.AMDGPU_FAMILY_NV:
-		return "NV", nil
-	default:
-		ret := ""
-		err := fmt.Errorf("Unknown Family ID: %d", familyId)
-		return ret, err
-	}
-
-}
-
-func GetCardFamilyName(cardName string) (string, error) {
-	devHandle, err := openAMDGPU(cardName)
-	if err != nil {
-		return "", err
-	}
-	defer C.amdgpu_device_deinitialize(devHandle)
-
-	var info C.struct_amdgpu_gpu_info
-	rc := C.amdgpu_query_gpu_info(devHandle, &info)
-
-	if rc < 0 {
-		return "", fmt.Errorf("Fail to get FamilyID %s: %d", cardName, rc)
-	}
-
-	return FamilyIDtoString(uint32(info.family_id))
-}
-
-// GetDriverVersion reads the AMDGPU driver version and source version
-func GetDriverVersion() (string, string) {
-	// Find all available cards to read driver version from
+// GetDriverVersion reads the AMDGPU driver version
+func GetDriverVersion() string {
 	matches, _ := filepath.Glob("/sys/class/drm/card*/device/driver/module/version")
 	if len(matches) == 0 {
 		glog.Warningf("No AMD GPU cards found for driver version reading")
-		return "", ""
+		return ""
 	}
 
 	for _, versionPath := range matches {
@@ -98,22 +45,13 @@ func GetDriverVersion() (string, string) {
 			continue
 		}
 		driverVersion := strings.TrimSpace(string(b))
-
-		srcVersionPath := strings.Replace(versionPath, "/version", "/srcversion", 1)
-		b, err = os.ReadFile(srcVersionPath)
-		if err != nil {
-			continue
-		}
-		driverSrcVersion := strings.TrimSpace(string(b))
-
-		// Return as soon as we find a valid driver version and src version
-		if driverVersion != "" && driverSrcVersion != "" {
-			return driverVersion, driverSrcVersion
+		if driverVersion != "" {
+			return driverVersion
 		}
 	}
 
-	glog.Warningf("Failed to read AMDGPU driver version or src version from any card")
-	return "", ""
+	glog.Warningf("Failed to read AMDGPU driver version from any card")
+	return ""
 }
 
 // GetAMDGPUs return a map of AMD GPU on a node identified by the part of the pci address
@@ -134,7 +72,7 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 	topologyInfo := GetTopologyInfo()
 
 	// Get driver version once for all devices
-	globalDriverVersion, globalDriverSrcVersion := GetDriverVersion()
+	globalDriverVersion := GetDriverVersion()
 
 	for _, path := range matches {
 		computePartitionFile := filepath.Join(path, "current_compute_partition")
@@ -189,14 +127,6 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 		// Extract PCI address from path (e.g., "0000:19:00.0" from "/sys/module/amdgpu/drivers/pci:amdgpu/0000:19:00.0")
 		pciAddr := filepath.Base(path)
 
-		// Get card family name
-		familyName := ""
-		if cardFamily, err := GetCardFamilyName(fmt.Sprintf("card%d", card)); err != nil {
-			glog.Warningf("Failed to get card family name for card%d: %s", card, err)
-		} else {
-			familyName = cardFamily
-		}
-
 		// Get product name
 		productName := ""
 		productNamePath := fmt.Sprintf("/sys/class/drm/card%d/device/product_name", card)
@@ -217,12 +147,10 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 			"deviceID":             sysfsDeviceID,
 			"pciAddr":              pciAddr,
 			"driverVersion":        globalDriverVersion,
-			"driverSrcVersion":     globalDriverSrcVersion,
 			"computePartitionType": computePartitionType,
 			"memoryPartitionType":  memoryPartitionType,
 			"numaNode":             numaNode,
 			"nodeId":               nodeId,
-			"family":               familyName,
 			"productName":          productName,
 		}
 
@@ -248,7 +176,6 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 		computePartitionType, memoryPartitionType := "", ""
 		numaNode := -1
 		parentPciAddr := ""
-		familyName := ""
 		productName := ""
 		sysfsDeviceID := ""
 
@@ -267,7 +194,6 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 					if device["kfdID"] == devID {
 						parentPciAddr = device["pciAddr"].(string)
 						numaNode = device["numaNode"].(int)
-						familyName = device["family"].(string)
 						productName = device["productName"].(string)
 						sysfsDeviceID = device["deviceID"].(string)
 						if device["computePartitionType"].(string) != "" && device["memoryPartitionType"].(string) != "" {
@@ -296,12 +222,10 @@ func GetAMDGPUs() map[string]map[string]interface{} {
 			"deviceID":             sysfsDeviceID,
 			"pciAddr":              parentPciAddr,
 			"driverVersion":        globalDriverVersion,
-			"driverSrcVersion":     globalDriverSrcVersion,
 			"computePartitionType": computePartitionType,
 			"memoryPartitionType":  memoryPartitionType,
 			"numaNode":             numaNode,
 			"nodeId":               nodeId,
-			"family":               familyName,
 			"productName":          productName,
 		}
 
@@ -346,36 +270,6 @@ func AMDGPU(cardName string) bool {
 		glog.Errorf("Error opening %s: %s", sysfsVendorPath, err)
 	}
 	return false
-}
-
-func openAMDGPU(cardName string) (C.amdgpu_device_handle, error) {
-	if !AMDGPU(cardName) {
-		return nil, fmt.Errorf("%s is not an AMD GPU", cardName)
-	}
-	devPath := "/dev/dri/" + cardName
-
-	dev, err := os.Open(devPath)
-
-	if err != nil {
-		return nil, fmt.Errorf("Fail to open %s: %s", devPath, err)
-	}
-	defer dev.Close()
-
-	devFd := C.int(dev.Fd())
-
-	var devHandle C.amdgpu_device_handle
-	var major C.uint32_t
-	var minor C.uint32_t
-
-	rc := C.amdgpu_device_initialize(devFd, &major, &minor, &devHandle)
-
-	if rc < 0 {
-		return nil, fmt.Errorf("Fail to initialize %s: %d", devPath, err)
-	}
-	glog.Infof("Initialized AMD GPU version: major %d, minor %d", major, minor)
-
-	return devHandle, nil
-
 }
 
 // ParseTopologyProperties parse for a property value in kfd topology file

@@ -32,8 +32,6 @@ type AmdGpuInfo struct {
 	KFDID            string // KFD-derived PCI address for internal parent-child tracking
 	DeviceID         string // sysfs PCI device ID (e.g., "0x740f")
 	DriverVersion    string
-	DriverSrcVersion string
-	Family           string
 	PCIAddress       string
 	PartitionProfile string
 	MemoryBytes      uint64
