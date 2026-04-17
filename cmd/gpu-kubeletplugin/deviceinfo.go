@@ -66,10 +66,12 @@ func (d *AmdGpuInfo) CanonicalName() string {
 func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
 		"type":          {StringValue: ptr.To(AmdGpuDeviceType)},
-		"deviceID":      {StringValue: ptr.To(d.DeviceID)},
 		"productName":   {StringValue: ptr.To(d.ProductName)},
 		"driverVersion": {VersionValue: ptr.To(d.DriverVersion)},
 		"numaNode":      {IntValue: ptr.To(int64(d.NumaNode))},
+	}
+	if d.DeviceID != "" {
+		attributes["deviceID"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.DeviceID)}
 	}
 	if d.PartitionProfile != "" {
 		attributes["partitionProfile"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.PartitionProfile)}
@@ -100,11 +102,13 @@ func (d *AmdPartitionInfo) CanonicalName() string {
 func (d *AmdPartitionInfo) GetDevice() resourceapi.Device {
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
 		"type":             {StringValue: ptr.To(AmdPartitionDeviceType)},
-		"deviceID":         {StringValue: ptr.To(d.Parent.DeviceID)},
 		"productName":      {StringValue: ptr.To(d.Parent.ProductName)},
 		"driverVersion":    {VersionValue: ptr.To(d.Parent.DriverVersion)},
 		"partitionProfile": {StringValue: ptr.To(d.PartitionProfile)},
 		"numaNode":         {IntValue: ptr.To(int64(d.NumaNode))},
+	}
+	if d.Parent.DeviceID != "" {
+		attributes["deviceID"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.Parent.DeviceID)}
 	}
 	if d.Parent.pciBusIDAttr.Name != "" {
 		attributes[d.Parent.pciBusIDAttr.Name] = d.Parent.pciBusIDAttr.Value

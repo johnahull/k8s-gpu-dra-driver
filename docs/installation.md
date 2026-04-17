@@ -13,7 +13,7 @@ and demo script workflows so you can reproduce builds and demos locally.
 
 A build container has been provided with Makefile targets to invoke builds inside
 the container (e.g., `make docker-build`). If you plan to build locally, you need
-a Go toolchain and C compiler (`build-essential` on Debian/Ubuntu).
+a Go toolchain.
 
 ## Environment
 

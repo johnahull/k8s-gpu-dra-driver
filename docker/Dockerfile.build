@@ -20,11 +20,10 @@ FROM golang:${GOLANG_VERSION}-bookworm
 
 # Basic build tooling; keep it small
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates git curl bash make gcc \
-    build-essential -y \
+    ca-certificates git curl bash make \
  && rm -rf /var/lib/apt/lists/*
 
-ENV CGO_ENABLED=1
+ENV CGO_ENABLED=0
 
 # Pin tool versions
 ARG CT_VERSION=v0.17.0
