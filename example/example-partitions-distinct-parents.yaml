@@ -5,7 +5,7 @@ metadata:
 
 ---
 ## Request two GPU partitions from DIFFERENT physical GPUs using constraints.distinctAttribute.
-## This creates a ResourceClaim that allocates p0 and p1 such that their deviceID differs.
+## This creates a ResourceClaim that allocates p0 and p1 such that their PCI bus address differs.
 apiVersion: resource.k8s.io/v1
 kind: ResourceClaim
 metadata:
@@ -31,7 +31,7 @@ spec:
           - cel:
               expression: 'device.attributes["gpu.amd.com"].type == "amdgpu-partition"'
     constraints:
-    - distinctAttribute: gpu.amd.com/deviceID
+    - distinctAttribute: resource.kubernetes.io/pciBusID
       requests: ["p0", "p1"]
 
 ---

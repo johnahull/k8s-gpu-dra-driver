@@ -28,166 +28,101 @@ import (
 // AmdGpuInfo represents a full AMD GPU device
 type AmdGpuInfo struct {
 	UUID             string
-	RenderIndex      int
-	CardIndex        int
 	ProductName      string
-	Family           string
-	DeviceID         string
+	KFDID            string // KFD-derived PCI address for internal parent-child tracking
+	DeviceID         string // sysfs PCI device ID (e.g., "0x740f")
 	DriverVersion    string
-	DriverSrcVersion string
 	PCIAddress       string
 	PartitionProfile string
 	MemoryBytes      uint64
 	ComputeUnits     int
 	SimdUnits        int
 	NumaNode         int
-	// PCIe root attribute for topology awareness
-	pcieRootAttr deviceattribute.DeviceAttribute
+	cardIndex        int // unexported: for CanonicalName and CDI path derivation
+	renderIndex      int // unexported: for CanonicalName and CDI path derivation
+	pcieRootAttr     deviceattribute.DeviceAttribute
+	pciBusIDAttr     deviceattribute.DeviceAttribute
 }
 
 // AmdPartitionInfo represents a partition of an AMD GPU
 type AmdPartitionInfo struct {
-	Parent           *AmdGpuInfo // Reference to parent GPU
+	Parent           *AmdGpuInfo
 	UUID             string
-	RenderIndex      int
-	CardIndex        int
 	PartitionProfile string
 	MemoryBytes      uint64
 	ComputeUnits     int
 	SimdUnits        int
 	NumaNode         int
+	cardIndex        int // unexported: for CanonicalName and CDI path derivation
+	renderIndex      int // unexported: for CanonicalName and CDI path derivation
 }
 
 // CanonicalName returns the canonical name for this GPU
 func (d *AmdGpuInfo) CanonicalName() string {
-	return fmt.Sprintf("gpu-%v-%v", d.CardIndex, d.RenderIndex)
+	return fmt.Sprintf("gpu-%v-%v", d.cardIndex, d.renderIndex)
 }
 
 // GetDevice returns the DRA Device representation for a full AMD GPU
 func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
-		"type": {
-			StringValue: ptr.To(AmdGpuDeviceType),
-		},
-		"pciAddr": {
-			StringValue: ptr.To(d.PCIAddress),
-		},
-		"cardIndex": {
-			IntValue: ptr.To(int64(d.CardIndex)),
-		},
-		"renderIndex": {
-			IntValue: ptr.To(int64(d.RenderIndex)),
-		},
-		"deviceID": {
-			StringValue: ptr.To(d.DeviceID),
-		},
-		"family": {
-			StringValue: ptr.To(d.Family),
-		},
-		"productName": {
-			StringValue: ptr.To(d.ProductName),
-		},
-		"driverVersion": {
-			VersionValue: ptr.To(d.DriverVersion),
-		},
-		"driverSrcVersion": {
-			StringValue: ptr.To(d.DriverSrcVersion),
-		},
-		"numaNode": {
-			IntValue: ptr.To(int64(d.NumaNode)),
-		},
+		"type":          {StringValue: ptr.To(AmdGpuDeviceType)},
+		"productName":   {StringValue: ptr.To(d.ProductName)},
+		"driverVersion": {VersionValue: ptr.To(d.DriverVersion)},
+		"numaNode":      {IntValue: ptr.To(int64(d.NumaNode))},
 	}
-
-	// Only advertise partitionProfile if the GPU supports partitioning
+	if d.DeviceID != "" {
+		attributes["deviceID"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.DeviceID)}
+	}
 	if d.PartitionProfile != "" {
-		attributes["partitionProfile"] = resourceapi.DeviceAttribute{
-			StringValue: ptr.To(d.PartitionProfile),
-		}
+		attributes["partitionProfile"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.PartitionProfile)}
 	}
-
-	// Add PCIe root attribute if available
+	if d.pciBusIDAttr.Name != "" {
+		attributes[d.pciBusIDAttr.Name] = d.pciBusIDAttr.Value
+	}
 	if d.pcieRootAttr.Name != "" {
 		attributes[d.pcieRootAttr.Name] = d.pcieRootAttr.Value
 	}
-
 	return resourceapi.Device{
 		Name:       d.CanonicalName(),
 		Attributes: attributes,
 		Capacity: map[resourceapi.QualifiedName]resourceapi.DeviceCapacity{
-			"memory": {
-				Value: *resource.NewQuantity(int64(d.MemoryBytes), resource.BinarySI),
-			},
-			"computeUnits": {
-				Value: *resource.NewQuantity(int64(d.ComputeUnits), resource.BinarySI),
-			},
-			"simdUnits": {
-				Value: *resource.NewQuantity(int64(d.SimdUnits), resource.BinarySI),
-			},
+			"memory":       {Value: *resource.NewQuantity(int64(d.MemoryBytes), resource.BinarySI)},
+			"computeUnits": {Value: *resource.NewQuantity(int64(d.ComputeUnits), resource.BinarySI)},
+			"simdUnits":    {Value: *resource.NewQuantity(int64(d.SimdUnits), resource.BinarySI)},
 		},
 	}
 }
 
 // CanonicalName returns the canonical name for this partition
 func (d *AmdPartitionInfo) CanonicalName() string {
-	return fmt.Sprintf("gpu-%v-%v", d.CardIndex, d.RenderIndex)
+	return fmt.Sprintf("gpu-%v-%v", d.cardIndex, d.renderIndex)
 }
 
 // GetDevice returns the DRA Device representation for an AMD GPU partition
 func (d *AmdPartitionInfo) GetDevice() resourceapi.Device {
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
-		"type": {
-			StringValue: ptr.To(AmdPartitionDeviceType),
-		},
-		"parentPciAddr": {
-			StringValue: ptr.To(d.Parent.PCIAddress),
-		},
-		"cardIndex": {
-			IntValue: ptr.To(int64(d.CardIndex)),
-		},
-		"renderIndex": {
-			IntValue: ptr.To(int64(d.RenderIndex)),
-		},
-		"parentDeviceID": {
-			StringValue: ptr.To(d.Parent.DeviceID),
-		},
-		"family": {
-			StringValue: ptr.To(d.Parent.Family),
-		},
-		"productName": {
-			StringValue: ptr.To(d.Parent.ProductName),
-		},
-		"driverVersion": {
-			VersionValue: ptr.To(d.Parent.DriverVersion),
-		},
-		"driverSrcVersion": {
-			StringValue: ptr.To(d.Parent.DriverSrcVersion),
-		},
-		"partitionProfile": {
-			StringValue: ptr.To(d.PartitionProfile),
-		},
-		"numaNode": {
-			IntValue: ptr.To(int64(d.NumaNode)),
-		},
+		"type":             {StringValue: ptr.To(AmdPartitionDeviceType)},
+		"productName":      {StringValue: ptr.To(d.Parent.ProductName)},
+		"driverVersion":    {VersionValue: ptr.To(d.Parent.DriverVersion)},
+		"partitionProfile": {StringValue: ptr.To(d.PartitionProfile)},
+		"numaNode":         {IntValue: ptr.To(int64(d.NumaNode))},
 	}
-
-	// Add PCIe root attribute if available (inherited from parent)
+	if d.Parent.DeviceID != "" {
+		attributes["deviceID"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.Parent.DeviceID)}
+	}
+	if d.Parent.pciBusIDAttr.Name != "" {
+		attributes[d.Parent.pciBusIDAttr.Name] = d.Parent.pciBusIDAttr.Value
+	}
 	if d.Parent.pcieRootAttr.Name != "" {
 		attributes[d.Parent.pcieRootAttr.Name] = d.Parent.pcieRootAttr.Value
 	}
-
 	return resourceapi.Device{
 		Name:       d.CanonicalName(),
 		Attributes: attributes,
 		Capacity: map[resourceapi.QualifiedName]resourceapi.DeviceCapacity{
-			"memory": {
-				Value: *resource.NewQuantity(int64(d.MemoryBytes), resource.BinarySI),
-			},
-			"computeUnits": {
-				Value: *resource.NewQuantity(int64(d.ComputeUnits), resource.BinarySI),
-			},
-			"simdUnits": {
-				Value: *resource.NewQuantity(int64(d.SimdUnits), resource.BinarySI),
-			},
+			"memory":       {Value: *resource.NewQuantity(int64(d.MemoryBytes), resource.BinarySI)},
+			"computeUnits": {Value: *resource.NewQuantity(int64(d.ComputeUnits), resource.BinarySI)},
+			"simdUnits":    {Value: *resource.NewQuantity(int64(d.SimdUnits), resource.BinarySI)},
 		},
 	}
 }
