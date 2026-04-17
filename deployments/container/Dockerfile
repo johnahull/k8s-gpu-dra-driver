@@ -34,10 +34,8 @@ FROM golang:${GOLANG_VERSION} as build
 WORKDIR /build
 COPY . .
 
-RUN apt-get update && \
-    apt-get install build-essential pkg-config libdrm-dev -y && \
-    rm -rf /var/lib/apt/lists/* && \
-    mkdir /artifacts && \
+ENV CGO_ENABLED=0
+RUN mkdir /artifacts && \
     make PREFIX=/artifacts cmds
 
 FROM ${BASE_IMAGE}
@@ -57,7 +55,6 @@ COPY LICENSE LICENSE
 
 RUN microdnf clean all && \
     microdnf update -y && \
-    microdnf install -y gcc gcc-c++ make pkgconfig libdrm && \
     microdnf clean all
 
 COPY --from=build /artifacts/gpu-kubeletplugin /usr/bin/gpu-kubeletplugin

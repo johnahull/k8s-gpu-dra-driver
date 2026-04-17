@@ -6,7 +6,7 @@ metadata:
 ---
 ## Request two GPU partitions from the SAME physical GPU using constraints.matchAttribute.
 ## This creates a single ResourceClaim that allocates two partition devices, p0 and p1,
-## constrained to share the same parent deviceID. A Pod then consumes both via one claim.
+## constrained to share the same parent PCI bus address. A Pod then consumes both via one claim.
 apiVersion: resource.k8s.io/v1
 kind: ResourceClaim
 metadata:
@@ -32,7 +32,7 @@ spec:
             - cel:
                 expression: 'device.attributes["gpu.amd.com"].type == "amdgpu-partition"'
     constraints:
-      - matchAttribute: gpu.amd.com/deviceID
+      - matchAttribute: resource.kubernetes.io/pciBusID
         requests: ["p0", "p1"]
 
 ---

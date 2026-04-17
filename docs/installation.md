@@ -11,10 +11,9 @@ and demo script workflows so you can reproduce builds and demos locally.
 - helm v3.7.0+
 - kubectl
 
-If you plan to build and run the AMD/ROCm CGO code (`pkg/amdgpu`) locally, make
-sure the development headers are installed (eg. `libdrm-dev` on Debian/Ubuntu). A
-build container packaging the development headers has been provided with Makefile
-targets to invoke builds inside the container.
+A build container has been provided with Makefile targets to invoke builds inside
+the container (e.g., `make docker-build`). If you plan to build locally, you need
+a Go toolchain.
 
 ## Environment
 

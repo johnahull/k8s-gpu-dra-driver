@@ -25,8 +25,8 @@
 : ${APIS:=gpu/v1alpha1}
 
 # Toolchain
-: ${GOLANG_VERSION:=1.24.2}
-: ${BUILDIMAGE_TAG:=v1.0}
+: ${GOLANG_VERSION:=1.26.0}
+: ${BUILDIMAGE_TAG:=v1.1}
 
 # Container/image defaults
 : ${DRIVER_IMAGE_REGISTRY:=docker.io/rocm}
