@@ -65,6 +65,7 @@ type Flags struct {
 	kubeletRegistrarDirectoryPath string
 	kubeletPluginsDirectoryPath   string
 	healthcheckPort               int
+	numaListEnabled               bool
 }
 
 type Config struct {
@@ -123,6 +124,13 @@ func newApp() *cli.App {
 			Value:       -1,
 			Destination: &flags.healthcheckPort,
 			EnvVars:     []string{"HEALTHCHECK_PORT"},
+		},
+		&cli.BoolFlag{
+			Name:        "numa-list",
+			Usage:       "Publish numaNode as SLIT-based list (true) or scalar (false). List form requires DRAListTypeAttributes feature gate on the cluster.",
+			Value:       true,
+			Destination: &flags.numaListEnabled,
+			EnvVars:     []string{"NUMA_LIST_ENABLED"},
 		},
 	}
 	cliFlags = append(cliFlags, flags.kubeClientConfig.Flags()...)

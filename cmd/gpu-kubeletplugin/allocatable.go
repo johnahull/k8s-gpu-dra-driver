@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	resourceapi "k8s.io/api/resource/v1"
+	"k8s.io/dynamic-resource-allocation/deviceattribute"
 )
 
 // AllocatableDevices represents a collection of allocatable devices mapped by their canonical names
@@ -72,15 +73,17 @@ func (d *AllocatableDevice) GetPCIAddress() string {
 	return ""
 }
 
-// GetDevice returns the DRA Device representation for Kubernetes
-func (d *AllocatableDevice) GetDevice() resourceapi.Device {
+// GetDevice returns the DRA Device representation for Kubernetes.
+// listEnabled controls whether the standard numaNode attribute uses SLIT-based
+// list form (true) or scalar form (false).
+func (d *AllocatableDevice) GetDevice(numaForm deviceattribute.AttributeForm) resourceapi.Device {
 	switch d.Type() {
 	case AmdGpuDeviceType:
-		return d.AmdGpu.GetDevice()
+		return d.AmdGpu.GetDevice(numaForm)
 	case AmdPartitionDeviceType:
-		return d.AmdPartition.GetDevice()
+		return d.AmdPartition.GetDevice(numaForm)
 	case VfioDeviceType:
-		return d.Vfio.GetDevice()
+		return d.Vfio.GetDevice(numaForm)
 	}
 	panic(fmt.Sprintf("unexpected device type: %s", d.Type()))
 }

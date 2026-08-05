@@ -22,6 +22,7 @@ import (
 	resourceapi "k8s.io/api/resource/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/dynamic-resource-allocation/deviceattribute"
+	klog "k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/amdgpu"
@@ -65,11 +66,18 @@ func (d *AmdGpuInfo) CanonicalName() string {
 }
 
 // GetDevice returns the DRA Device representation for a full AMD GPU
-func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
+func (d *AmdGpuInfo) GetDevice(numaForm deviceattribute.AttributeForm) resourceapi.Device {
+	numaID := int64(d.NumaNode)
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
 		"type":        {StringValue: ptr.To(AmdGpuDeviceType)},
 		"productName": {StringValue: ptr.To(d.ProductName)},
-		"numaNode":    {IntValue: ptr.To(int64(d.NumaNode))},
+		"numaNode":    {IntValue: &numaID},
+	}
+	numaAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(d.PCIAddress, numaForm)
+	if err != nil {
+		klog.Warningf("Failed to get standard NUMA attribute for %s: %v", d.PCIAddress, err)
+	} else {
+		attributes[numaAttr.Name] = numaAttr.Value
 	}
 	if d.DriverVersion != "" {
 		attributes["driverVersion"] = resourceapi.DeviceAttribute{VersionValue: ptr.To(amdgpu.SemverDriverVersion(d.DriverVersion))}
@@ -119,13 +127,20 @@ func (d *AmdGpuVFIOInfo) CanonicalName() string {
 }
 
 // GetDevice returns the DRA Device representation for a VFIO passthrough GPU
-func (d *AmdGpuVFIOInfo) GetDevice() resourceapi.Device {
+func (d *AmdGpuVFIOInfo) GetDevice(numaForm deviceattribute.AttributeForm) resourceapi.Device {
+	numaID := int64(d.NumaNode)
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
 		"type":       {StringValue: ptr.To(VfioDeviceType)},
-		"numaNode":   {IntValue: ptr.To(int64(d.NumaNode))},
+		"numaNode":   {IntValue: &numaID},
 		"iommuGroup": {StringValue: ptr.To(d.IOMMUGroup)},
 		"pciAddr":    {StringValue: ptr.To(d.PCIAddress)},
 		"isVF":       {BoolValue: ptr.To(d.IsVF)},
+	}
+	numaAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(d.PCIAddress, numaForm)
+	if err != nil {
+		klog.Warningf("Failed to get standard NUMA attribute for VFIO device %s: %v", d.PCIAddress, err)
+	} else {
+		attributes[numaAttr.Name] = numaAttr.Value
 	}
 	if d.ProductName != "" {
 		attributes["productName"] = resourceapi.DeviceAttribute{StringValue: ptr.To(d.ProductName)}
@@ -154,12 +169,19 @@ func (d *AmdPartitionInfo) CanonicalName() string {
 }
 
 // GetDevice returns the DRA Device representation for an AMD GPU partition
-func (d *AmdPartitionInfo) GetDevice() resourceapi.Device {
+func (d *AmdPartitionInfo) GetDevice(numaForm deviceattribute.AttributeForm) resourceapi.Device {
+	numaID := int64(d.NumaNode)
 	attributes := map[resourceapi.QualifiedName]resourceapi.DeviceAttribute{
 		"type":             {StringValue: ptr.To(AmdPartitionDeviceType)},
 		"productName":      {StringValue: ptr.To(d.Parent.ProductName)},
 		"partitionProfile": {StringValue: ptr.To(d.PartitionProfile)},
-		"numaNode":         {IntValue: ptr.To(int64(d.NumaNode))},
+		"numaNode":         {IntValue: &numaID},
+	}
+	numaAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(d.Parent.PCIAddress, numaForm)
+	if err != nil {
+		klog.Warningf("Failed to get standard NUMA attribute for partition %s: %v", d.Parent.PCIAddress, err)
+	} else {
+		attributes[numaAttr.Name] = numaAttr.Value
 	}
 	if d.Parent.DriverVersion != "" {
 		attributes["driverVersion"] = resourceapi.DeviceAttribute{VersionValue: ptr.To(amdgpu.SemverDriverVersion(d.Parent.DriverVersion))}

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	resourceapi "k8s.io/api/resource/v1"
+	"k8s.io/dynamic-resource-allocation/deviceattribute"
 )
 
 func deviceNames(devices []resourceapi.Device) []string {
@@ -56,7 +57,7 @@ func TestResourceSliceDevicesAreSortedByName(t *testing.T) {
 	// Map iteration order is not defined, so repeating the call also catches an
 	// accidental removal of the sort.
 	for i := 0; i < 50; i++ {
-		got := deviceNames(resourceSliceDevices(allocatable))
+		got := deviceNames(resourceSliceDevices(allocatable, deviceattribute.ScalarAttribute))
 		if !slices.Equal(got, want) {
 			t.Fatalf("device order mismatch on call %d: got %v, want %v", i, got, want)
 		}

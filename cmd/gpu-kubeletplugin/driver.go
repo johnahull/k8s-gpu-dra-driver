@@ -46,6 +46,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreclientset "k8s.io/client-go/kubernetes"
 	drametadatav1alpha1 "k8s.io/dynamic-resource-allocation/api/metadata/v1alpha1"
+	"k8s.io/dynamic-resource-allocation/deviceattribute"
 	"k8s.io/dynamic-resource-allocation/kubeletplugin"
 	"k8s.io/dynamic-resource-allocation/resourceslice"
 	klog "k8s.io/klog/v2"
@@ -60,12 +61,18 @@ type driver struct {
 	state       *DeviceState
 	healthcheck *healthcheck
 	cancelCtx   func(error)
+	numaForm    deviceattribute.AttributeForm
 }
 
 func NewDriver(ctx context.Context, config *Config) (*driver, error) {
+	numaForm := deviceattribute.ScalarAttribute
+	if config.flags.numaListEnabled {
+		numaForm = deviceattribute.ListAttribute
+	}
 	driver := &driver{
 		client:    config.coreclient,
 		cancelCtx: config.cancelMainCtx,
+		numaForm:  numaForm,
 	}
 
 	state, err := NewDeviceState(config)
@@ -94,7 +101,7 @@ func NewDriver(ctx context.Context, config *Config) (*driver, error) {
 	}
 	driver.helper = helper
 
-	devices := resourceSliceDevices(state.allocatable)
+	devices := resourceSliceDevices(state.allocatable, numaForm)
 	resources := resourceslice.DriverResources{
 		Pools: map[string]resourceslice.Pool{
 			config.flags.nodeName: {
@@ -130,10 +137,10 @@ func NewDriver(ctx context.Context, config *Config) (*driver, error) {
 // ResourceSlice would change on every restart. The order is also the first-fit
 // allocation priority the scheduler applies, so keeping it deterministic
 // matters beyond avoiding churn.
-func resourceSliceDevices(allocatable AllocatableDevices) []resourceapi.Device {
+func resourceSliceDevices(allocatable AllocatableDevices, numaForm deviceattribute.AttributeForm) []resourceapi.Device {
 	devices := make([]resourceapi.Device, 0, len(allocatable))
 	for device := range maps.Values(allocatable) {
-		devices = append(devices, device.GetDevice())
+		devices = append(devices, device.GetDevice(numaForm))
 	}
 	slices.SortFunc(devices, func(a, b resourceapi.Device) int {
 		return cmp.Compare(a.Name, b.Name)
@@ -178,7 +185,7 @@ func (d *driver) prepareResourceClaim(_ context.Context, claim *resourceapi.Reso
 
 		if featuregates.Enabled(featuregates.DeviceMetadata) {
 			if allocDev, exists := d.state.allocatable[preparedPB.GetDeviceName()]; exists {
-				device := allocDev.GetDevice()
+				device := allocDev.GetDevice(d.numaForm)
 				if len(device.Attributes) > 0 {
 					attrs := make(map[string]resourceapi.DeviceAttribute, len(device.Attributes))
 					for k, v := range device.Attributes {
