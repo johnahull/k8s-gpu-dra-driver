@@ -18,7 +18,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/consts"
 
@@ -47,6 +46,7 @@ type AmdGpuInfo struct {
 	renderIndex      int // unexported: for CanonicalName and CDI path derivation
 	pcieRootAttr     deviceattribute.DeviceAttribute
 	pciBusIDAttr     deviceattribute.DeviceAttribute
+	numaNodeAttr     deviceattribute.DeviceAttribute
 }
 
 // AmdPartitionInfo represents a partition of an AMD GPU
@@ -90,6 +90,9 @@ func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 	if d.pcieRootAttr.Name != "" {
 		attributes[d.pcieRootAttr.Name] = d.pcieRootAttr.Value
 	}
+	if d.numaNodeAttr.Name != "" {
+		attributes[d.numaNodeAttr.Name] = d.numaNodeAttr.Value
+	}
 	return resourceapi.Device{
 		Name:       d.CanonicalName(),
 		Attributes: attributes,
@@ -102,8 +105,6 @@ func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 }
 
 // AmdGpuVFIOInfo represents a GIM SR-IOV VF for VFIO passthrough
-const VFSlotCounterName = "vf-slots"
-
 type AmdGpuVFIOInfo struct {
 	PCIAddress         string
 	DeviceID           string
@@ -115,6 +116,7 @@ type AmdGpuVFIOInfo struct {
 	IsVF               bool
 	pciBusIDAttr       deviceattribute.DeviceAttribute
 	pcieRootAttr       deviceattribute.DeviceAttribute
+	numaNodeAttr       deviceattribute.DeviceAttribute
 	preConfigureDriver string
 	IommuFDCdev        string
 	ParentPFAddress    string
@@ -217,6 +219,9 @@ func (d *AmdGpuVFIOInfo) GetDevice() resourceapi.Device {
 	if d.pcieRootAttr.Name != "" {
 		attributes[d.pcieRootAttr.Name] = d.pcieRootAttr.Value
 	}
+	if d.numaNodeAttr.Name != "" {
+		attributes[d.numaNodeAttr.Name] = d.numaNodeAttr.Value
+	}
 	if mode := d.partitionMode(); mode != "" {
 		attributes["partitionProfile"] = resourceapi.DeviceAttribute{StringValue: ptr.To(mode)}
 	}
@@ -265,6 +270,9 @@ func (d *AmdPartitionInfo) GetDevice() resourceapi.Device {
 	}
 	if d.Parent.pcieRootAttr.Name != "" {
 		attributes[d.Parent.pcieRootAttr.Name] = d.Parent.pcieRootAttr.Value
+	}
+	if d.Parent.numaNodeAttr.Name != "" {
+		attributes[d.Parent.numaNodeAttr.Name] = d.Parent.numaNodeAttr.Value
 	}
 	return resourceapi.Device{
 		Name:       d.CanonicalName(),
