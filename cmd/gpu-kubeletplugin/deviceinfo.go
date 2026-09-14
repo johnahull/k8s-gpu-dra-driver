@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/ROCm/k8s-gpu-dra-driver/pkg/consts"
 
@@ -105,6 +106,8 @@ func (d *AmdGpuInfo) GetDevice() resourceapi.Device {
 }
 
 // AmdGpuVFIOInfo represents a GIM SR-IOV VF for VFIO passthrough
+const VFSlotCounterName = "vf-slots"
+
 type AmdGpuVFIOInfo struct {
 	PCIAddress         string
 	DeviceID           string

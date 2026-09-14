@@ -97,6 +97,13 @@ func getPcieInfo(gpuInfoMap map[string]interface{}) (topologyAttrs, error) {
 	numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pciAddr, attrForm)
 	if err != nil {
 		klog.V(2).Infof("Standard numaNode attribute unavailable for %s: %v", pciAddr, err)
+	} else {
+		klog.Infof("Got numaNode attribute for %s: name=%s, err=%v, listAttr=%v", pciAddr, numaNodeAttr.Name, err, featuregates.Enabled(featuregates.DRAListAttributes))
+		if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
+			numaNode := gpuInfoMap["numaNode"].(int)
+			numaNodeAttr.Value.IntValues = []int64{int64(numaNode)}
+			klog.Infof("Set numaNode list attribute for %s: name=%s, values=%v", pciAddr, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
+		}
 	}
 	return topologyAttrs{
 		pcieRoot: pcieRootAttr,
@@ -258,6 +265,9 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pf.PCIAddress, attrForm)
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO PF %s: %v", pf.PCIAddress, err)
+					} else if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
+						numaNodeAttr.Value.IntValues = []int64{int64(pf.NumaNode)}
+						klog.Infof("Set numaNode list attribute for VFIO PF %s: name=%s, values=%v", pf.PCIAddress, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
 					}
 					device := &AmdGpuVFIOInfo{
 						PCIAddress:         pf.PCIAddress,
@@ -308,6 +318,9 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vf.PCIAddress, attrForm)
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO VF %s: %v", vf.PCIAddress, err)
+					} else if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
+						numaNodeAttr.Value.IntValues = []int64{int64(vf.NumaNode)}
+						klog.Infof("Set numaNode list attribute for VFIO VF %s: name=%s, values=%v", vf.PCIAddress, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
 					}
 					currentDriver, _ := amdgpu.GetPCIDriver(vf.PCIAddress)
 					var memPerVF uint64
