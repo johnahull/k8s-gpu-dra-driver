@@ -55,11 +55,19 @@ const DeviceMetadata featuregate.Feature = "DeviceMetadata"
 // from amdgpu to vfio-pci when a VfioDeviceConfig is present in the claim.
 const VFIOPassthrough featuregate.Feature = "VFIOPassthrough"
 
+// DRAListAttributes enables publishing resource.kubernetes.io/numaNode as a
+// list attribute (IntsValue) instead of a single value (IntValue), allowing
+// devices to advertise affinity with multiple NUMA nodes.
+const DRAListAttributes featuregate.Feature = "DRAListAttributes"
+
 var defaultFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
 	DeviceMetadata: {
 		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
 	},
 	VFIOPassthrough: {
+		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
+	},
+	DRAListAttributes: {
 		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
 	},
 }

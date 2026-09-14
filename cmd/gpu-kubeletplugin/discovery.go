@@ -90,7 +90,11 @@ func getPcieInfo(gpuInfoMap map[string]interface{}) (topologyAttrs, error) {
 	if err != nil {
 		return topologyAttrs{}, fmt.Errorf("failed to get PCI Bus ID attribute for device %s: %v", pciAddr, err)
 	}
-	numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pciAddr, deviceattribute.ScalarAttribute)
+	attrForm := deviceattribute.ScalarAttribute
+	if featuregates.Enabled(featuregates.DRAListAttributes) {
+		attrForm = deviceattribute.ListAttribute
+	}
+	numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pciAddr, attrForm)
 	if err != nil {
 		klog.V(2).Infof("Standard numaNode attribute unavailable for %s: %v", pciAddr, err)
 	}
@@ -247,7 +251,11 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 						klog.Warningf("Failed to get PCIe root for VFIO PF %s: %v", pf.PCIAddress, err)
 					}
 					pciBusIDAttr, _ := deviceattribute.GetPCIBusIDAttribute(pf.PCIAddress)
-					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pf.PCIAddress, deviceattribute.ScalarAttribute)
+					attrForm := deviceattribute.ScalarAttribute
+					if featuregates.Enabled(featuregates.DRAListAttributes) {
+						attrForm = deviceattribute.ListAttribute
+					}
+					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pf.PCIAddress, attrForm)
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO PF %s: %v", pf.PCIAddress, err)
 					}
@@ -293,7 +301,11 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 						klog.Warningf("Failed to get PCIe root for VFIO VF %s: %v", vf.PCIAddress, err)
 					}
 					pciBusIDAttr, _ := deviceattribute.GetPCIBusIDAttribute(vf.PCIAddress)
-					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vf.PCIAddress, deviceattribute.ScalarAttribute)
+					attrForm := deviceattribute.ScalarAttribute
+					if featuregates.Enabled(featuregates.DRAListAttributes) {
+						attrForm = deviceattribute.ListAttribute
+					}
+					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vf.PCIAddress, attrForm)
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO VF %s: %v", vf.PCIAddress, err)
 					}
