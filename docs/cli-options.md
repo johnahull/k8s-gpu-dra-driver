@@ -57,3 +57,4 @@ or `helm ... --set featureGates.ExampleFeature=true`.
 | Gate | Default | Stage | Description |
 |------|---------|-------|-------------|
 | `VFIOPassthrough` | `false` | Alpha | Enables VFIO passthrough support. Discovers GIM SR-IOV VFs, binds to `vfio-pci` on demand during Prepare, generates CDI specs for `/dev/vfio/*` device nodes. Required for VM passthrough via KubeVirt. |
+| `DRAListTypeAttributes` | `false` | Alpha | Publishes list-valued DRA attributes, including the standard `resource.kubernetes.io/numaNode` list. Enable Kubernetes' same-named feature gate in the apiserver and scheduler before enabling this driver gate. |
