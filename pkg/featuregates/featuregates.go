@@ -55,11 +55,20 @@ const DeviceMetadata featuregate.Feature = "DeviceMetadata"
 // from amdgpu to vfio-pci when a VfioDeviceConfig is present in the claim.
 const VFIOPassthrough featuregate.Feature = "VFIOPassthrough"
 
+// DRAListTypeAttributes enables publishing list-valued DRA attributes,
+// including resource.kubernetes.io/numaNode. The Kubernetes feature gate with
+// the same name must be enabled in the apiserver and scheduler before this
+// driver setting is enabled.
+const DRAListTypeAttributes featuregate.Feature = "DRAListTypeAttributes"
+
 var defaultFeatureGates = map[featuregate.Feature]featuregate.VersionedSpecs{
 	DeviceMetadata: {
 		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
 	},
 	VFIOPassthrough: {
+		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
+	},
+	DRAListTypeAttributes: {
 		{Default: false, PreRelease: featuregate.Alpha, Version: version.MajorMinor(0, 1)},
 	},
 }
