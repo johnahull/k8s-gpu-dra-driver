@@ -80,6 +80,13 @@ type topologyAttrs struct {
 	pciAddr  string
 }
 
+func configuredNUMAAttributeForm() deviceattribute.AttributeForm {
+	if featuregates.Enabled(featuregates.DRAListTypeAttributes) {
+		return deviceattribute.ListAttribute
+	}
+	return deviceattribute.ScalarAttribute
+}
+
 func getPcieInfo(gpuInfoMap map[string]interface{}) (topologyAttrs, error) {
 	pciAddr := gpuInfoMap["pciAddr"].(string)
 	pcieRootAttr, err := deviceattribute.GetPCIeRootAttributeByPCIBusID(pciAddr)
@@ -90,20 +97,9 @@ func getPcieInfo(gpuInfoMap map[string]interface{}) (topologyAttrs, error) {
 	if err != nil {
 		return topologyAttrs{}, fmt.Errorf("failed to get PCI Bus ID attribute for device %s: %v", pciAddr, err)
 	}
-	attrForm := deviceattribute.ScalarAttribute
-	if featuregates.Enabled(featuregates.DRAListAttributes) {
-		attrForm = deviceattribute.ListAttribute
-	}
-	numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pciAddr, attrForm)
+	numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pciAddr, configuredNUMAAttributeForm())
 	if err != nil {
 		klog.V(2).Infof("Standard numaNode attribute unavailable for %s: %v", pciAddr, err)
-	} else {
-		klog.Infof("Got numaNode attribute for %s: name=%s, err=%v, listAttr=%v", pciAddr, numaNodeAttr.Name, err, featuregates.Enabled(featuregates.DRAListAttributes))
-		if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
-			numaNode := gpuInfoMap["numaNode"].(int)
-			numaNodeAttr.Value.IntValues = []int64{int64(numaNode)}
-			klog.Infof("Set numaNode list attribute for %s: name=%s, values=%v", pciAddr, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
-		}
 	}
 	return topologyAttrs{
 		pcieRoot: pcieRootAttr,
@@ -258,16 +254,9 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 						klog.Warningf("Failed to get PCIe root for VFIO PF %s: %v", pf.PCIAddress, err)
 					}
 					pciBusIDAttr, _ := deviceattribute.GetPCIBusIDAttribute(pf.PCIAddress)
-					attrForm := deviceattribute.ScalarAttribute
-					if featuregates.Enabled(featuregates.DRAListAttributes) {
-						attrForm = deviceattribute.ListAttribute
-					}
-					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pf.PCIAddress, attrForm)
+					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(pf.PCIAddress, configuredNUMAAttributeForm())
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO PF %s: %v", pf.PCIAddress, err)
-					} else if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
-						numaNodeAttr.Value.IntValues = []int64{int64(pf.NumaNode)}
-						klog.Infof("Set numaNode list attribute for VFIO PF %s: name=%s, values=%v", pf.PCIAddress, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
 					}
 					device := &AmdGpuVFIOInfo{
 						PCIAddress:         pf.PCIAddress,
@@ -311,16 +300,9 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 						klog.Warningf("Failed to get PCIe root for VFIO VF %s: %v", vf.PCIAddress, err)
 					}
 					pciBusIDAttr, _ := deviceattribute.GetPCIBusIDAttribute(vf.PCIAddress)
-					attrForm := deviceattribute.ScalarAttribute
-					if featuregates.Enabled(featuregates.DRAListAttributes) {
-						attrForm = deviceattribute.ListAttribute
-					}
-					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vf.PCIAddress, attrForm)
+					numaNodeAttr, err := deviceattribute.GetNUMANodeAttributeByPCIBusID(vf.PCIAddress, configuredNUMAAttributeForm())
 					if err != nil {
 						klog.V(2).Infof("Standard numaNode attribute unavailable for VFIO VF %s: %v", vf.PCIAddress, err)
-					} else if numaNodeAttr.Name != "" && featuregates.Enabled(featuregates.DRAListAttributes) {
-						numaNodeAttr.Value.IntValues = []int64{int64(vf.NumaNode)}
-						klog.Infof("Set numaNode list attribute for VFIO VF %s: name=%s, values=%v", vf.PCIAddress, numaNodeAttr.Name, numaNodeAttr.Value.IntValues)
 					}
 					currentDriver, _ := amdgpu.GetPCIDriver(vf.PCIAddress)
 					var memPerVF uint64
