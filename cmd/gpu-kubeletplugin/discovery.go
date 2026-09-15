@@ -80,11 +80,15 @@ type topologyAttrs struct {
 	pciAddr  string
 }
 
-func configuredNUMAAttributeForm() deviceattribute.AttributeForm {
-	if featuregates.Enabled(featuregates.DRAListTypeAttributes) {
+func numaAttributeForm(listEnabled bool) deviceattribute.AttributeForm {
+	if listEnabled {
 		return deviceattribute.ListAttribute
 	}
 	return deviceattribute.ScalarAttribute
+}
+
+func configuredNUMAAttributeForm() deviceattribute.AttributeForm {
+	return numaAttributeForm(featuregates.Enabled(featuregates.DRAListTypeAttributes))
 }
 
 func getPcieInfo(gpuInfoMap map[string]interface{}) (topologyAttrs, error) {
