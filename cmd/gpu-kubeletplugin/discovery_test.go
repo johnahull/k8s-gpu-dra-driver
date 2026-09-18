@@ -17,9 +17,13 @@ limitations under the License.
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/ROCm/k8s-gpu-dra-driver/pkg/amdgpu"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/dynamic-resource-allocation/deviceattribute"
 )
 
@@ -35,4 +39,45 @@ func TestGetMemoryBytes(t *testing.T) {
 	// Unreadable VRAM reports 0 instead of a fabricated capacity.
 	assert.Equal(t, uint64(0), getMemoryBytes(map[string]interface{}{}, "device", "0000:00:00.0"))
 	assert.Equal(t, uint64(0), getMemoryBytes(map[string]interface{}{"vramBytes": uint64(0)}, "partition", "0000:00:00.0"))
+}
+
+func TestGetVFIOParentInfo(t *testing.T) {
+	root := t.TempDir()
+	amdgpu.SetSysfsRoot(root)
+	t.Cleanup(amdgpu.ResetSysfsRoot)
+
+	pciRoot := filepath.Join(root, "sys/bus/pci/devices")
+	pfAddr := "0000:0a:00.0"
+	vfAddr := "0000:0b:00.0"
+	pfPath := filepath.Join(pciRoot, pfAddr)
+	vfPath := filepath.Join(pciRoot, vfAddr)
+	require.NoError(t, os.MkdirAll(pfPath, 0755))
+	require.NoError(t, os.MkdirAll(vfPath, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(pfPath, "sriov_totalvfs"), []byte("8\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(pfPath, "sriov_numvfs"), []byte("4\n"), 0644))
+	require.NoError(t, os.Symlink(filepath.Join("..", pfAddr), filepath.Join(vfPath, "physfn")))
+
+	isVF, parent, total, active := getVFIOParentInfo(vfAddr)
+	assert.True(t, isVF)
+	assert.Equal(t, pfAddr, parent)
+	assert.Equal(t, 8, total)
+	assert.Equal(t, 4, active)
+}
+
+func TestGetVFIOParentInfoForPF(t *testing.T) {
+	root := t.TempDir()
+	amdgpu.SetSysfsRoot(root)
+	t.Cleanup(amdgpu.ResetSysfsRoot)
+
+	pciRoot := filepath.Join(root, "sys/bus/pci/devices")
+	pfAddr := "0000:0a:00.0"
+	pfPath := filepath.Join(pciRoot, pfAddr)
+	require.NoError(t, os.MkdirAll(pfPath, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(pfPath, "sriov_totalvfs"), []byte("8\n"), 0644))
+
+	isVF, parent, total, active := getVFIOParentInfo(pfAddr)
+	assert.False(t, isVF)
+	assert.Equal(t, pfAddr, parent)
+	assert.Equal(t, 8, total)
+	assert.Equal(t, 0, active)
 }
