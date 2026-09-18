@@ -150,6 +150,12 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 		// Extract common topology information
 		simdUnits, computeUnits := extractTopologyInfo(gpuInfoMap)
+		var isVF bool
+		var parentPFAddress string
+		var totalVFs, numVFs int
+		if featuregates.Enabled(featuregates.VFIOPassthrough) {
+			isVF, parentPFAddress, totalVFs, numVFs = getVFIOParentInfo(pciAddr)
+		}
 
 		if computePartitionType == consts.ComputePartitionSPX || computePartitionType == "" {
 			// This is a full AMD GPU (either explicitly "spx" or no partition support)
@@ -174,6 +180,9 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 				ComputeUnits:     computeUnits,
 				NumaNode:         gpuInfoMap["numaNode"].(int),
 				MemoryBytes:      getMemoryBytes(gpuInfoMap, "device", pciAddr),
+				ParentPFAddress:  parentPFAddress,
+				TotalVFs:         totalVFs,
+				IsVF:             isVF,
 			}
 
 			// Create allocatable device for the full GPU
@@ -187,7 +196,6 @@ func enumerateAllPossibleDevices() (AllocatableDevices, error) {
 
 			if featuregates.Enabled(featuregates.VFIOPassthrough) {
 				iommuGroup, _ := amdgpu.GetIOMMUGroup(pciAddr)
-				isVF, parentPFAddress, totalVFs, numVFs := getVFIOParentInfo(pciAddr)
 				vfioSibling := &AmdGpuVFIOInfo{
 					PCIAddress:      pciAddr,
 					DeviceID:        amdGpuInfo.DeviceID,
